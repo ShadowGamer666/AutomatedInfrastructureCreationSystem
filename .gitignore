@@ -1,0 +1,6 @@
+.terraform
+.tfstate
+.log
+.backup
+.info
+.lock
