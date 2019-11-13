@@ -22,8 +22,47 @@ variable "rds_project_name" {}
 variable "rds_admin_username" {}
 variable "rds_admin_password" {}
 variable "rds_enable_public_access" {}
+variable "rds_security_group_id" {
+  default = ""
+}
+variable "rds_vpc_id" {}
+variable "rds_subnet_group_name" {}
 variable "rds_tags"{
   type = "map"
+}
+
+data "aws_vpc" "rds_default_sg_vpc" {
+  id = "${var.rds_vpc_id}"
+}
+
+resource "aws_security_group" "rds_default_security_group" {
+  name = "${var.rds_project_name}DefaultRDSSecurityGroup"
+  vpc_id = "${data.aws_vpc.rds_default_sg_vpc.id}"
+  ingress {
+    cidr_blocks = [
+      "0.0.0.0/0"
+    ]
+    from_port = 22
+    to_port = 22
+    protocol = "tcp"
+  }
+  ingress {
+    cidr_blocks = [
+      "0.0.0.0/0"
+    ]
+    from_port = 3306
+    to_port = 3306
+    protocol = "tcp"
+  }
+  egress {
+    cidr_blocks = [
+      "0.0.0.0/0"
+    ]
+    from_port = 0
+    protocol = "-1" # -1 Any Protocol
+    to_port = 0
+  }
+  tags = "${var.rds_tags}"
 }
 
 resource "aws_db_instance" "rds_instance" {
@@ -46,6 +85,8 @@ resource "aws_db_instance" "rds_instance" {
   # Both will be provided on demand by the user.
   username = "${var.rds_admin_username}"
   password = "${var.rds_admin_password}"
+  db_subnet_group_name = "${var.rds_subnet_group_name}"
+  vpc_security_group_ids = ["${var.rds_security_group_id != "" ? var.rds_security_group_id : aws_security_group.rds_default_security_group.id}"]
   tags = "${var.rds_tags}"
 }
 

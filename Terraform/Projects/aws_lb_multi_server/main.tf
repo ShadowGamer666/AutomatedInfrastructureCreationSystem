@@ -7,7 +7,6 @@ variable "region" {}
 variable "project_name" {}
 variable "db_username" {}
 variable "db_password" {}
-variable "public_key_filepath" {}
 variable "ec2_use_default_ami" {
   default = true
 }
@@ -67,6 +66,12 @@ variable "rdscluster_apply_chanes_immediately" {
 variable "rdscluster_enable_public_access" {
   default = false
 }
+variable "ec2_subnet_id" {}
+variable "vpc_id" {}
+variable "rdscluster_subnet_group_name" {}
+variable "associate_public_ip_address" {
+  default = true
+}
 variable "project_tags" {
   type = "map"
   default = {
@@ -87,9 +92,11 @@ module "aws_lb_multi_ec2s" {
   lb_targetgroup_healthcheck_endpoint = "${var.targetgroup_healthcheck_endpoint}"
   lb_targetgroup_healthly_codes = "${var.targetgroup_healthcheck_healthycodes}"
   lb_project_name = "${var.project_name}"
-  lb_public_key = "${var.public_key_filepath}"
   lb_tags = "${var.project_tags}"
   lb_region = "${var.region}"
+  lb_associate_public_ip = "${var.associate_public_ip_address}"
+  lb_ec2_subnet_id = "${var.ec2_subnet_id}"
+  lb_vpc_id = "${var.vpc_id}"
 }
 
 module "aws_single_dbcluster" {
@@ -107,4 +114,23 @@ module "aws_single_dbcluster" {
   rdscluster_tags = "${var.project_tags}"
   rdscluster_username = "${var.db_username}"
   rdscluster_enable_public_access = "${var.rdscluster_enable_public_access}"
+  rdscluster_subnet_group_name = "${var.rdscluster_subnet_group_name}"
+  rdscluster_vpc_id = "${var.vpc_id}"
+}
+
+# Outputs Generated Public/Private Key files needed for EC2 access to the user.
+output "ec2_private_key" {
+  value = "${module.aws_lb_multi_ec2s.lb_ec2_private_key}"
+}
+
+output "ec2_public_key" {
+  value = "${module.aws_lb_multi_ec2s.lb_ec2_public_key}"
+}
+
+output "ec2_private_ip" {
+  value = "${module.aws_lb_multi_ec2s.lb_ec2_private_ips}"
+}
+
+output "ec2_public_ip" {
+  value = "${module.aws_lb_multi_ec2s.lb_ec2_public_ips}"
 }

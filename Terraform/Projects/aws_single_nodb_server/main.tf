@@ -14,6 +14,11 @@ variable "ec2_type" {
 variable "ec2_use_default_ami" {
   default = true
 }
+variable "ec2_subnet_id" {}
+variable "ec2_vpc_id" {}
+variable "associate_public_ip_address" {
+  default = true
+}
 variable "project_tags" {
   type = "map"
   default = {
@@ -28,4 +33,8 @@ module "aws_single_ec2_instance" {
   ec2_type = "${var.ec2_type}"
   ec2_default_ami = "${var.ec2_use_default_ami}"
   ec2_tags = "${var.project_tags}"
+  ec2_associate_public_ip = "${var.associate_public_ip_address}"
+  ec2_region = "${var.region}"
+  ec2_subnet_id = "${var.ec2_subnet_id}"
+  ec2_vpc_id = "${var.ec2_vpc_id}"
 }

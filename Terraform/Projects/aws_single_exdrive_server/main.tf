@@ -10,7 +10,6 @@ variable "availibility_region" {
 variable "project_name" {}
 variable "db_username" {}
 variable "db_password" {}
-variable "public_key_filepath" {}
 variable "ec2_use_default_ami" {
   default = true
 }
@@ -62,6 +61,12 @@ variable "rds_allocated_storage" {
 variable "rds_enable_public_access" {
   default = false
 }
+variable "ec2_subnet_id" {}
+variable "vpc_id" {}
+variable "rds_subnet_group_name" {}
+variable "associate_public_ip_address" {
+  default = true
+}
 variable "project_tags" {
   type = "map"
   default = {
@@ -73,13 +78,15 @@ module "aws_single_exdrive_ec2" {
   source = "../../Modules/aws_ec2/ebs_ec2"
   ebs_default_ami = "${var.ec2_use_default_ami}"
   ebs_region = "${var.region}"
-  ebs_ec2_public_key = "${var.public_key_filepath}"
   ebs_project_name = "${var.project_name}"
   ebs_ec2_type = "${var.ec2_instance_type}"
   ebs_storage_size = "${var.ebs_storage_size}"
   ebs_encrypt = "${var.ebs_storage_encryption}"
   ebs_kms_key_id = "${var.ebs_kms_key_id}"
   ebs_tags = "${var.project_tags}"
+  ebs_ec2_subnet_id = "${var.ec2_subnet_id}"
+  ebs_vpc_id = "${var.vpc_id}"
+  ebs_associate_public_ip = "${var.associate_public_ip_address}"
 }
 
 module "aws_single_rds_instance" {
@@ -100,4 +107,22 @@ module "aws_single_rds_instance" {
   rds_tags = "${var.project_tags}"
   rds_allocated_storage = "${var.rds_allocated_storage}"
   rds_enable_public_access = "${var.rds_enable_public_access}"
+  rds_subnet_group_name = "${var.rds_subnet_group_name}"
+  rds_vpc_id = "${var.vpc_id}"
+}
+
+output "ec2_private_key" {
+  value = "${module.aws_single_exdrive_ec2.ebs_ec2_private_key}"
+}
+
+output "ec2_public_key" {
+  value = "${module.aws_single_exdrive_ec2.ebs_ec2_public_key}"
+}
+
+output "ec2_private_ip" {
+  value = "${module.aws_single_exdrive_ec2.ebs_ec2_private_ip}"
+}
+
+output "ec2_public_ip" {
+  value = "${module.aws_single_exdrive_ec2.ebs_ec2_public_ip}"
 }

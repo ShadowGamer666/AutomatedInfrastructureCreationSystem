@@ -7,7 +7,6 @@ variable "region" {}
 variable "project_name" {}
 variable "db_username" {}
 variable "db_password" {}
-variable "public_key_filepath" {}
 variable "ec2_type" {
   default = "t3.micro"
 }
@@ -41,6 +40,12 @@ variable "rdscluster_apply_chanes_immediately" {
 variable "rdscluster_enable_public_access" {
   default = false
 }
+variable "ec2_subnet_id" {}
+variable "vpc_id" {}
+variable "rds_subnet_group_name" {}
+variable "associate_public_ip_address" {
+  default = true
+}
 variable "project_tags" {
   type = "map"
   default = {
@@ -51,10 +56,13 @@ variable "project_tags" {
 module "aws_single_ec2_instance" {
   source = "../../Modules/aws_ec2/standard_ec2"
   ec2_project_name = "${var.project_name}"
-  ec2_public_key = "${var.public_key_filepath}"
   ec2_type = "${var.ec2_type}"
   ec2_default_ami = "${var.ec2_use_default_ami}"
   ec2_tags = "${var.project_tags}"
+  ec2_region = "${var.region}"
+  ec2_subnet_id = "${var.ec2_subnet_id}"
+  ec2_vpc_id = "${var.vpc_id}"
+  ec2_associate_public_ip = "${var.associate_public_ip_address}"
 }
 
 module "aws_single_dbcluster" {
@@ -72,4 +80,22 @@ module "aws_single_dbcluster" {
   rdscluster_tags = "${var.project_tags}"
   rdscluster_username = "${var.db_username}"
   rdscluster_enable_public_access = "${var.rdscluster_enable_public_access}"
+  rdscluster_subnet_group_name = "${var.rds_subnet_group_name}"
+  rdscluster_vpc_id = "${var.vpc_id}"
+}
+
+output "ec2_private_key" {
+  value = "${module.aws_single_ec2_instance.ec2_private_key}"
+}
+
+output "ec2_public_key" {
+  value = "${module.aws_single_ec2_instance.ec2_public_key}"
+}
+
+output "ec2_private_ip" {
+  value = "${module.aws_single_ec2_instance.standard_ec2_private_ip}"
+}
+
+output "ec2_public_ip" {
+  value = "${module.aws_single_ec2_instance.standard_ec2_public_ip}"
 }
