@@ -3,13 +3,15 @@
 import tkinter as tk
 from tkinter import font as tkFont
 from tkinter import filedialog as tkFile
-# Open Source File Format Determination Library at: https://github.com/floyernick/fleep-py
+# Open Source File Format Determination Lbrary at: https://github.com/floyernick/fleep-py
 import fleep
 # Allows discovery of file sizes.
 import os
 # Allows program to execute remote operations on the central server.
 import subprocess
 import platform
+# Allows credentials to be sent encrypted to the central server.
+import rsa
 
 # Defines functions that will be executed by the GUI.
 def input_as_text():
@@ -27,8 +29,7 @@ def input_as_text():
     # Clears text box after analysis is complete.
     srs_text_input.delete('1.0','end')
 
-def input_as_file():
-    # Allows user to select an SRS document for analysis.
+def input_as_file():   # Allows user to select an SRS document for analysis.
     srs_file = tkFile.askopenfile(parent=inter, mode='rb', title="Choose a File")
     # Reads the selected file from the user's system.
     if srs_file != None:
@@ -60,31 +61,99 @@ def input_as_file():
 def input_to_central_server(srs_filepath,ext):
     # Sends file to central application server for analysis.
     # These filepaths are only used for demonstration purposes, templates of default filepaths.
-    windows_key_filepath = "C:\\Users\\Thomas\\Documents\\InfrastructureLibrary\\PuttyCentralKey.ppk"
-    linux_key_filepath = "/opt/infra/CentralKey.pem"
+    windows_server_key_filepath = infra_directory_windows + "PuttyCentralKey.ppk"
+    linux_server_key_filepath = infra_directory_linux + "CentralKey.pem"
+    windows_creds_key_filepath = infra_directory_windows + "CredentialKey.txt"
+    linux_creds_key_filepath = infra_directory_linux + "CredentialKey.txt"
     central_server = "ec2-user@ec2-52-30-159-69.eu-west-1.compute.amazonaws.com"
-    central_server_filepath = central_server+":/opt/infra/SRSDocs/PredictSRSDoc."+ ext
+    central_server_filepath = central_server+":"+infra_directory_linux+"SRSDocs/PredictSRSDoc."+ ext
+    windows_encrypted_creds_filepath = "C:\\Temp\\encryptcreds.txt"
+    linux_encrypted_creds_filepath = "/tmp/encryptcreds.txt"
+    central_encrypted_creds_filepath = central_server+":"+linux_encrypted_creds_filepath
+    # Imports the Key required to send sensitive credentials to the Central Server.
+
+    # Reads the required infrastructure credential details and OpenSSL RSA Key.
+    if platform.system() == "Windows":
+        selected_provider_file = open(selected_cloud_filepath_windows, 'r')
+        creds_key_file = open(windows_creds_key_filepath, 'rb')
+    elif platform.system() == "Linux" or "Darwin":  # Darwin = MacOS
+        selected_provider_file = open(selected_cloud_filepath_linux, 'r')
+        creds_key_file = open(linux_creds_key_filepath,'rb')
+    # Loads the Public Key used to encrypt sensitive cloud provider credentials.
+    srs_creds_key = creds_key_file.read()
+    srs_creds_key = rsa.PublicKey.load_pkcs1_openssl_pem(srs_creds_key)
+    # Loads the currently selected cloud provider .
+    selected_provider = selected_provider_file.read()
+    selected_provider_file.close()
+    creds_key_file.close()
+
+    if selected_provider == "AWS":
+        try:
+            if platform.system() == "Windows":
+                aws_credentials_file = open(aws_filepath_windows, 'r')
+            elif platform.system() == "Linux" or "Darwin":  # Darwin = MacOS
+                aws_credentials_file = open(aws_filepath_linux, 'r')
+            # Splits the file into it's individual parameters.
+            for parameters in aws_credentials_file:
+                aws_credentials = parameters.split(" ")
+            # Performs any credential encryption operations required for this provider.
+            # AWS Format: AWS <ACCESS_KEY> <SECRET_KEY> <DEFAULT_REGION>
+            srs_user_credentials = aws_credentials[0] + " " + aws_credentials[1] + " " + aws_credentials[2] + " " + aws_credentials[3]
+            # Full payload is encrypted into Bytes.
+            encrypted_user_credentials = rsa.encrypt(srs_user_credentials.encode('utf8'), srs_creds_key)
+        except FileNotFoundError:
+            print("Please set up your AWS user credentials under 'Manage Cloud Provider Details'")
+            # Prevents further execution in the event that no credentials are available.
+            return
+    elif selected_provider == "GOOGLE":
+        print("Provider not supported at the moment.")
+    elif selected_provider == "AZURE":
+        print("Provider not supported at the moment.")
+
+    # Sends encrypted credentials to a temp file for transfer to Central Server.
+    if platform.system() == "Windows":
+        encrypted_creds_file = open(windows_encrypted_creds_filepath, 'wb')
+    elif platform.system() == "Linux" or "Darwin":  # Darwin = MacOS
+        encrypted_creds_file = open(linux_encrypted_creds_filepath, 'wb')
+    encrypted_creds_file.write(encrypted_user_credentials)
+    encrypted_creds_file.close()
+
     # Requires different commands depending on the User's OS.
     print(platform.system())
     # Copies SRS data to Central Server, then executes the SRS Analysis and Infrastructure Creation script.
     if platform.system() == "Windows":
         # Putty SCP and Plick are used as they directly integrate with Bash like Putty.
-        subprocess.run(["pscp", "-i", windows_key_filepath, srs_filepath, central_server_filepath])
-        subprocess.run(["plink", "-ssh","-i",windows_key_filepath,central_server,"/opt/infra/InfraBash.sh",ext])
+        # Transfers the SRS document to the Central Server for classification analysis.
+        subprocess.run(["pscp", "-i", windows_server_key_filepath, srs_filepath, central_server_filepath])
+        # Sends the encrypted credentials for this session to the Central Server.
+        subprocess.run(["pscp", "-i", windows_server_key_filepath, windows_encrypted_creds_filepath, central_encrypted_creds_filepath])
+        # Executes the Bash wrapper script on the Central Server to perform classification and infrastructure creation.
+        subprocess.run(["plink", "-ssh","-i",windows_server_key_filepath,central_server,infra_directory_linux+"InfraBash.sh",ext])
     elif platform.system() == "Linux" or "Darwin":  # Darwin = MacOS
         # Uses SSH sessions to initiate the required operations on the Central Server.
-        subprocess.run(["scp", "-i", linux_key_filepath, srs_filepath, central_server_filepath])
-        subprocess.run(["ssh", "-i",linux_key_filepath,central_server, "/opt/infra/InfraBash.sh",ext])
+        subprocess.run(["scp", "-i", linux_server_key_filepath, srs_filepath, central_server_filepath])
+        # Sends the encrypted credentials for this session to the Central Server.
+        subprocess.run(["scp", "-i", linux_server_key_filepath, linux_encrypted_creds_filepath, central_encrypted_creds_filepath])
+        # Executes the Bash wrapper script on the Central Server to perform classification and infrastructure creation.
+        subprocess.run(["ssh", "-i",linux_server_key_filepath,central_server, infra_directory_linux+"InfraBash.sh",ext])
 
 def set_selected_provider():
     def update_selected_provider():
-        print(selected_cloud_provider.get())
+        # Discovers the currently selected Radio Button.
+        selected_radio_button = selected_cloud_provider.get()
+        # Write this as the new user selected provider.
+        if platform.system() == "Windows":
+            selected_provider_file = open(selected_cloud_filepath_windows, 'w')
+        elif platform.system() == "Linux" or "Darwin":  # Darwin = MacOS
+            selected_provider_file = open(selected_cloud_filepath_linux, 'w')
+        selected_provider_file.write(selected_radio_button)
+        selected_provider_file.close()
 
-    selected_cloud_filepath_windows = "C:\\Users\\Thomas\\Documents\\InfrastructureLibrary\\SelectedCloud.txt"
-    selected_cloud_filepath_linux = "/opt/infra/selected_cloud.txt"
-
+    # Creates the root GUI interface, as IntVar needs to be explicitly linked to this root.
+    set_selected_provider_gui = tk.Tk()
+    set_selected_provider_gui.title("Set Default Cloud Provider")
     # Sets the selected provider value
-    selected_cloud_provider = tk.IntVar()
+    selected_cloud_provider = tk.StringVar(set_selected_provider_gui)
     # Shows the current selected provider to the user.
     try:
         if platform.system() == "Windows":
@@ -93,26 +162,30 @@ def set_selected_provider():
             selected_provider_file = open(selected_cloud_filepath_linux, 'r')
         selected_cloud_provider.set(selected_provider_file.read())
     except FileNotFoundError:
-        selected_cloud_provider.set(1)
+        selected_cloud_provider.set("AWS")
+        if platform.system() == "Windows":
+            selected_provider_file = open(selected_cloud_filepath_windows, 'w')
+        elif platform.system() == "Linux" or "Darwin":  # Darwin = MacOS
+            selected_provider_file = open(selected_cloud_filepath_linux, 'w')
+        selected_provider_file.write("AWS")
+        selected_provider_file.close()
         print("No default provider found, selecting AWS as default provider.")
 
-    set_selected_provider_gui = tk.Tk()
-    set_selected_provider_gui.title("Set Default Cloud Provider")
     set_selected_provider_label = tk.Label(set_selected_provider_gui, text="Default Cloud Provider:", font=srs_font)
 
     # Creates the selection radio button frame.
     selected_provider_radio_button_frame = tk.Frame(set_selected_provider_gui)
-    aws_radio_button = tk.Radiobutton(selected_provider_radio_button_frame, text = "AWS", variable=selected_cloud_provider, value=1)
-    google_radio_button = tk.Radiobutton(selected_provider_radio_button_frame, text = "Google Cloud", variable=selected_cloud_provider, value=2)
-    azure_radio_button = tk.Radiobutton(selected_provider_radio_button_frame, text = "Azure", variable=selected_cloud_provider, value=3)
+    aws_radio_button = tk.Radiobutton(selected_provider_radio_button_frame, text = "AWS", value="AWS", variable=selected_cloud_provider, command=update_selected_provider)
+    google_radio_button = tk.Radiobutton(selected_provider_radio_button_frame, text = "Google Cloud", value="GOOGLE", variable=selected_cloud_provider, command=update_selected_provider)
+    azure_radio_button = tk.Radiobutton(selected_provider_radio_button_frame, text = "Azure", value="AZURE", variable=selected_cloud_provider, command=update_selected_provider)
 
     # Programmatically activates the relevant Radio Button.
-    if selected_cloud_provider.get() == 1:
+    if selected_cloud_provider.get() == "AWS":
         aws_radio_button.invoke()
-    elif selected_cloud_provider.get() == 2:
+    elif selected_cloud_provider.get() == "GOOGLE":
         google_radio_button.invoke()
-    elif selected_cloud_provider.get() == 3:
-        azure_radio_button
+    elif selected_cloud_provider.get() == "AZURE":
+        azure_radio_button.invoke()
     else:
         print("Invalid Cloud Provider found.")
 
@@ -123,8 +196,8 @@ def set_selected_provider():
     azure_radio_button.pack()
 
     # The button to submit changes to default cloud provider.
-    selected_cloud_provider_button = tk.Button(set_selected_provider_gui, text="Select Default Provider", width=25, command=update_selected_provider)
-    selected_cloud_provider_button.grid()
+    finish_selection_button = tk.Button(set_selected_provider_gui, text="Finish", width=25, command=set_selected_provider_gui.destroy)
+    finish_selection_button.grid()
     set_selected_provider_gui.mainloop()
 
 def aws_cloud_details():
@@ -148,10 +221,6 @@ def aws_cloud_details():
         # Indicates successful credential updates and closes the interface.
         print("AWS Credential Changes Have Been Saved.")
         aws_details_gui.destroy()
-
-    # Ensures that user text input can be read by all GUI methods.
-    aws_filepath_windows = "C:\\Users\\Thomas\\Documents\\InfrastructureLibrary\\AWSInfraUserCredentials.txt"
-    aws_filepath_linux = "/opt/infra/AWS_credentials.txt"
 
     # Reads current credentials for user to view if available.
     try:
@@ -214,12 +283,20 @@ def aws_cloud_details():
     aws_quit_button.pack(side = "right")
     aws_details_gui.mainloop()
 
+# Defines all of the filepaths used by the system.
+infra_directory_windows = "C:\\Users\\Thomas\\Documents\\InfrastructureLibrary\\"
+infra_directory_linux = "/opt/infra/"
+selected_cloud_filepath_windows = infra_directory_windows + "SelectedCloud.txt"
+selected_cloud_filepath_linux = infra_directory_linux + "selected_cloud.txt"
+aws_filepath_windows = infra_directory_windows + "AWSInfraUserCredentials.txt"
+aws_filepath_linux = infra_directory_linux + "AWS_credentials.txt"
+google_filepath_windows = infra_directory_windows + "GoogleInfraUserCredentials.txt"
+google_filepath_linux = infra_directory_linux + "Google_credentials.txt"
 
 # Create the GUI master object.
 inter = tk.Tk()
 inter.title("Automated Infrastructure Creation System")
 # Sets the Font for GUI Labels ensuring global access.
-global srs_font
 srs_font = tkFont.Font(family = "Helvetica", size = 12)
 
 # Creates the Menu that allows user Cloud Provider credentials to be set.
