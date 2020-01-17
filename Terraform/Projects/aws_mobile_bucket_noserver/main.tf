@@ -5,6 +5,11 @@ provider "aws" {
 
 variable "region" {}
 variable "project_name" {}
+variable "db_username" {}
+variable "db_password" {}
+variable "rds_subnet_group_name" {}
+variable "ec2_subnet_id" {}
+variable "ec2_vpc_id" {}
 variable "s3_acl" {
   default = "private"
 }
