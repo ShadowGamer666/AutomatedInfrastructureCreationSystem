@@ -46,6 +46,7 @@ srs_model_id = srs_prediction_client.model_path(
 if ext == "txt":
    # Creates the Payload for SRS input in text format.
     srs_text_data = open("/opt/infra/SRSDocs/PredictSRSDoc.txt",'r')
+    srs_text_data = srs_text_data.read()
     srs_text_doc = automl.types.TextSnippet(
     content = srs_text_data, mime_type = "text/plain"
     )
