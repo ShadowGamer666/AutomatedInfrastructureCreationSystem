@@ -43,7 +43,8 @@ variable "rds_allocated_storage" {
 variable "rds_enable_public_access" {
   default = false
 }
-variable "rds_vpc_id" {}
+variable "ec2_vpc_id" {}
+variable "ec2_subnet_id" {}
 variable "rds_subnet_group_name" {}
 variable "project_tags" {
   type = "map"
@@ -71,5 +72,5 @@ module "aws_single_rds" {
   rds_allocated_storage = "${var.rds_allocated_storage}"
   rds_enable_public_access = "${var.rds_enable_public_access}"
   rds_subnet_group_name = "${var.rds_subnet_group_name}"
-  rds_vpc_id = "${var.rds_vpc_id}"
+  rds_vpc_id = "${var.ec2_vpc_id}"
 }
