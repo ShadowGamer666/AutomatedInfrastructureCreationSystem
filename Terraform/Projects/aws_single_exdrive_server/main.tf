@@ -62,7 +62,7 @@ variable "rds_enable_public_access" {
   default = false
 }
 variable "ec2_subnet_id" {}
-variable "vpc_id" {}
+variable "ec2_vpc_id" {}
 variable "rds_subnet_group_name" {}
 variable "associate_public_ip_address" {
   default = true
@@ -85,7 +85,7 @@ module "aws_single_exdrive_ec2" {
   ebs_kms_key_id = "${var.ebs_kms_key_id}"
   ebs_tags = "${var.project_tags}"
   ebs_ec2_subnet_id = "${var.ec2_subnet_id}"
-  ebs_vpc_id = "${var.vpc_id}"
+  ebs_vpc_id = "${var.ec2_vpc_id}"
   ebs_associate_public_ip = "${var.associate_public_ip_address}"
 }
 
@@ -108,7 +108,7 @@ module "aws_single_rds_instance" {
   rds_allocated_storage = "${var.rds_allocated_storage}"
   rds_enable_public_access = "${var.rds_enable_public_access}"
   rds_subnet_group_name = "${var.rds_subnet_group_name}"
-  rds_vpc_id = "${var.vpc_id}"
+  rds_vpc_id = "${var.ec2_vpc_id}"
 }
 
 output "ec2_private_key" {
