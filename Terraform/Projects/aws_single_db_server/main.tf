@@ -56,7 +56,7 @@ variable "rds_enable_public_access" {
 }
 variable "rds_subnet_group_name" {}
 variable "ec2_subnet_id" {}
-variable "vpc_id" {}
+variable "ec2_vpc_id" {}
 variable "project_tags" {
   type = "map"
   default = {
@@ -73,7 +73,7 @@ module "aws_single_ec2_instance" {
   ec2_associate_public_ip = "${var.ec2_associate_public_ip_address}"
   ec2_region = "${var.region}"
   ec2_subnet_id = "${var.ec2_subnet_id}"
-  ec2_vpc_id = "${var.vpc_id}"
+  ec2_vpc_id = "${var.ec2_vpc_id}"
 }
 
 module "aws_single_rds_instance" {
@@ -95,7 +95,7 @@ module "aws_single_rds_instance" {
   rds_project_name = "${var.project_name}"
   rds_tags = "${var.project_tags}"
   rds_subnet_group_name = "${var.rds_subnet_group_name}"
-  rds_vpc_id = "${var.vpc_id}"
+  rds_vpc_id = "${var.ec2_vpc_id}"
 }
 
 output "ec2_private_key" {
