@@ -68,7 +68,7 @@ variable "rdscluster_enable_public_access" {
 }
 variable "ec2_subnet_id" {}
 variable "vpc_id" {}
-variable "rdscluster_subnet_group_name" {}
+variable "rds_subnet_group_name" {}
 variable "associate_public_ip_address" {
   default = true
 }
@@ -114,7 +114,7 @@ module "aws_single_dbcluster" {
   rdscluster_tags = "${var.project_tags}"
   rdscluster_username = "${var.db_username}"
   rdscluster_enable_public_access = "${var.rdscluster_enable_public_access}"
-  rdscluster_subnet_group_name = "${var.rdscluster_subnet_group_name}"
+  rdscluster_subnet_group_name = "${var.rds_subnet_group_name}"
   rdscluster_vpc_id = "${var.vpc_id}"
 }
 
