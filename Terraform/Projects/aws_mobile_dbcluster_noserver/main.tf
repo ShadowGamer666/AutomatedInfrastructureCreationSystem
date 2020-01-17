@@ -34,7 +34,8 @@ variable "rdscluster_apply_chanes_immediately" {
 variable "rdscluster_enable_public_access" {
   default = false
 }
-variable "rds_vpc_id" {}
+variable "ec2_vpc_id" {}
+variable "ec2_subnet_id" {}
 variable "rds_subnet_group_name" {}
 variable "project_tags" {
   type = "map"
@@ -59,5 +60,5 @@ module "aws_single_dbcluster" {
   rdscluster_username = "${var.db_username}"
   rdscluster_enable_public_access = "${var.rdscluster_enable_public_access}"
   rdscluster_subnet_group_name = "${var.rds_subnet_group_name}"
-  rdscluster_vpc_id = "${var.rds_vpc_id}"
+  rdscluster_vpc_id = "${var.ec2_vpc_id}"
 }
