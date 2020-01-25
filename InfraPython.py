@@ -41,7 +41,7 @@ srs_client_options = {'api_endpoint':'eu-automl.googleapis.com:443'}
 srs_prediction_client = automl.PredictionServiceClient(client_options=srs_client_options)
 # Discovers the full_model_id based on project_id,location,model_id.
 srs_model_id = srs_prediction_client.model_path(
-"avian-cat-259412","eu","TCN3424494935406018560"
+"avian-cat-259412","eu","TCN1241339831666081792"
 )
 if ext == "txt":
    # Creates the Payload for SRS input in text format.
