@@ -1,0 +1,25 @@
+---
+- name: Installs required Python components.
+  hosts: all
+  tasks:
+    - name: Installs latest Python interpreter packages.
+      yum: name="{{ yum_packages }}" state=latest
+      become: true
+    - name: Installs recomended Pip Packages.
+      pip: name="{{ pip_packages }}" executable=pip3
+      become: true
+  vars:
+    yum_packages:
+    - python3
+    - python3-devel
+    - python3-setuptools
+    - python3-pip
+    - python3-tkinter # GUI Library
+    pip_packages:
+    - requests #HTTP Requests Library
+    - scrapy # Web-Scrapping Library
+    - tensorflow # Machine Learning Library
+    - scapy # Packet Sniffing Library
+    - pendulum # Date/Time Parsing Library
+    - dash # Web Application Build Library
+    - nltk # NLP Library
