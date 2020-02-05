@@ -50,7 +50,7 @@ then
         echo "Azure support will come in the future."
 fi
 # Executes the required Terraform script based on classification.
-terraform init
+terraform init -input=false
 terraform apply \
 -var project_name=$PROJECT_NAME \
 -var db_username=$DB_USERNAME \
@@ -59,13 +59,59 @@ terraform apply \
 -var ec2_vpc_id=$DEFAULT_VPC_ID \
 -var rds_subnet_group_name=$DEFAULT_RDSSUBNET_NAME \
 -var region=$DEFAULT_REGION \
--lock=false -auto-approve
+-var "project_tags={\"Service\":\""$PROJECT_NAME"InfraService\"}" \
+-lock=false -input=false -auto-approve
 # -lock=false ensures no state data conflicts from previous sessions.
-SUCCESS=$?
-if [ $SUCCESS ]
+# The tag ensures Ansible has something to reference.
+
+# Records the sucess of the Terraform operation.
+TERRAFORM_SUCCESS=$?
+# Halts execution if Terraform operation was unsuccessful for any reason.
+if [ $TERRAFORM_SUCCESS -ne 0 ]
+then
+        echo "Infrastructure Creation Failed."
+        # Wipes all failed data from the system.
+        terraform state list | xargs -L 1 terraform state rm
+        exit 3
+fi
+
+# Executes any required Ansible Playbooks to configure the new infrastructure.
+KEY_FILEPATH="/tmp/connectfile.pem"
+if [ $CLOUD_PROVIDER = "AWS" ]
+then
+        # Obtains the nessecary output data from Terraform.
+        SERVICE_NAME=$PROJECT_NAME"InfraService"
+        # Writes the required key to a tmp file.
+        terraform output ec2_private_key > $KEY_FILEPATH
+        # Ensures KeyFile has the correct permissions level.
+        sudo chmod 600 $KEY_FILEPATH
+        # Ensures script can easily access Ansible playbooks.
+        cd /opt/infra/InfrastructureLib/Ansible
+        # Obtains Inv data for user's current EC2 infrastructure.
+        ./ec2.py --refresh-cache
+        # Runs the required playbook on the newly created EC2.
+        ansible-playbook -i ec2.py -l tag_Service_$SERVICE_NAME Playbooks/python.yml --key-file $KEY_FILEPATH
+fi
+
+# Records the success of the Ansible operation.
+ANSIBLE_SUCCESS=$?
+# Halts execution if Ansible configuration was unsuccessful for any reason.
+if [ $ANSIBLE_SUCCESS -ne 0 ]
+then
+        echo "Infrastructure Configuration Failed."
+        exit 4
+fi
+
+if [ $TERRAFORM_SUCCESS -eq 0 ]
 then
         # Removes Project State information
         terraform state list | xargs -L 1 terraform state rm
         echo "SRS Infrastructure has been successfully created for:"
         echo $PROJECT_NAME
+fi
+
+if [ $ANSIBLE_SUCCESS -eq 0 ]
+then
+        # Removes all cache data for the User's host(s).
+        ansible-playbook --flush-cache
 fi
