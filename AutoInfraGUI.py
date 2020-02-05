@@ -3,7 +3,8 @@
 import tkinter as tk
 from tkinter import font as tkFont
 from tkinter import filedialog as tkFile
-# Open Source File Format Determination Lbrary at: https://github.com/floyernick/fleep-py
+from tkinter import messagebox as tkMessageBox
+# Open Source File Format Determination Library at: https://github.com/floyernick/fleep-py
 import fleep
 # Allows discovery of SRS PDF Document file sizes.
 import os
@@ -12,6 +13,8 @@ import subprocess
 import platform
 # Allows credentials/information to be sent encrypted to the Central Server.
 import rsa
+# Allows users to copy/paste PlainText SRS from the system clipboard.
+import pyperclip
 
 # Defines functions that will be executed by the GUI.
 # Process any SRS Document provider in text format.
@@ -60,10 +63,10 @@ def input_as_file():
             # Exits the operation if the file selected is not a PDF file.
             if srs_file_size > 128 and srs_file_info.mime_matches("application/pdf"):
                 print("File must be 128KB or less.")
-                exit(5)
+                tkMessageBox.showerror("File Size Error","File must be 128KB or less.")
             else:
                 print("File retrieved is not in the PDF format.")
-                exit(6)
+                tkMessageBox.showerror("File Format Error","File retrieved is not in the PDF format.")
     else:
         # Exits the operation if filepath is invalid.
         print("User has not selected a file or filepath provided is invalid.")
@@ -78,9 +81,22 @@ def get_project_details(srs_filepath,ext):
         db_username = srs_entries[1].get()
         db_password = srs_entries[2].get()
 
+        # Test String to ensure compliance of db username and password.
+        db_test_string = '/"@ '
         # Ensures that all parameters are specified before continuing.
         if len(project_name) == 0 or len(db_username) == 0 or len(db_password) == 0:
             print("All project parameters must be specified.")
+            tkMessageBox.showerror("Unspecified Project Parameters","All project parameters must be specified.")
+            return
+        elif len(db_username) > 16:
+            # Ensures username is compliant with all available DB Engines. Check for String = isinstance(db_username[0],str)
+            print("DB Username must not be longer than 16 characters. The 1st character must be a letter.")
+            tkMessageBox.showerror("DB Username Error","DB Username must not be longer than 16 characters. The 1st character must be a letter.")
+            return
+        elif len(db_password) < 8 or len(db_password) > 30 or any(element in db_password for element in db_test_string):
+            # Ensures password is compliant with all available DB Engines.
+            print('DB Password must be between 8-30 characters long. Containing no forbidden characters [/,",@, ]')
+            tkMessageBox.showerror("DB Password Error",'DB Password must be between 8-30 characters long. Containing no forbidden characters [/,",@, ]')
             return
         project_parameters = project_name + " " + db_username + " " + db_password
         print("Project Info Successfully Gathered.")
@@ -99,7 +115,11 @@ def get_project_details(srs_filepath,ext):
     for text in srs_parameters:
         aws_frame = tk.Frame(srs_parameters_gui)
         aws_label = tk.Label(aws_frame, text=text, font=srs_font)
-        srs_entries.append(tk.Entry(aws_frame, width=50))
+        # Enables password style input for Db Password Text Entry.
+        if text == "DB Password:":
+            srs_entries.append(tk.Entry(aws_frame, show="*", width=50))
+        else:
+            srs_entries.append(tk.Entry(aws_frame, width=50))
         aws_frame.grid()
         aws_label.pack(side = "left")
         srs_entries[entry_count].pack(side = "right")
@@ -194,7 +214,7 @@ def input_to_central_server(srs_filepath,ext,srs_project_info):
     project_info_file.close()
 
     # Requires different commands depending on the User's OS.
-    print(platform.system())
+    print("User Platform: " + platform.system())
     # Copies SRS data to Central Server, then executes the SRS Analysis and Infrastructure Creation script.
     if platform.system() == "Windows":
         # Putty SCP and Plick are used as they directly integrate with Bash like Putty.
@@ -416,6 +436,32 @@ srs_file_label = tk.Label(inter, text = "Input SRS as PDF Document:", font = srs
 srs_file_button = tk.Button(inter, text = "Browse for File", width = 25, command = input_as_file)
 srs_file_label.grid()
 srs_file_button.grid()
+
+# Function manages the Popup of the Menu when Text Input is Right-Clicked.
+def popup(event):
+    try:
+        popup_menu.tk_popup(event.x_root,event.y_root,0)
+    finally:
+        popup_menu.grab_release()
+# Function allows system Clipboard to copy SRS Text Input contents.
+def copy():
+    srs_copy_text = srs_text_input.get("1.0",tk.END)
+    # Ensures Empty String/New Line only String is not present in the Clipboard.
+    if not srs_copy_text or srs_copy_text == "\n":
+        print("No Text Available in the SRS Text Input Box.")
+        return
+    else:
+        pyperclip.copy(srs_copy_text)
+# Function allows user to paste Clipboard content into the SRS Text Input.
+def paste():
+    srs_text_input.insert(tk.END, pyperclip.paste())
+
+# Attempt at a Popup Menu to Allow Copy/Paste of SRS PlainText Documents.
+popup_menu = tk.Menu(inter)
+popup_menu.add_command(label="Copy", command=copy)
+popup_menu.add_command(label="Paste", command=paste)
+# Binds the Popup Menu to the SRS Text Input.
+srs_text_input.bind("<Button-3>",popup)
 
 # This loop is used to run the constructed GUI for the user.
 inter.mainloop()
