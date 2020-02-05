@@ -7,7 +7,7 @@
     - name: Installs latest Python interpreter packages. CENTOS
       yum: name="{{ python_packages }}" state=latest
       become: true
-      when: ansible_distribution == "CentOS" and ansible_distribution == "Amazon"
+      when: ansible_distribution == "CentOS" or ansible_distribution == "Amazon" or ansible_distribution == "RedHat"
     - name: Installs latest Python interpreter packages. DEBIAN
       apt: name="{{ python_packages }}" state=latest
       become: true
