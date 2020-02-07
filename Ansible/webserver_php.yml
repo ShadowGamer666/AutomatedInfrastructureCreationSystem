@@ -1,0 +1,114 @@
+---
+# Script will only install PHP7.x due to known security issues with PHP5.x
+# Installation process uses Remi (https://rpms.remirepo.net/enterprise/7/)
+# and Ondrej (ppa:ondrej/php) to access latest PHP packages.
+- name: Install all required components for Apache and PHP.
+  hosts: all
+  tasks:
+    - name: Prints User's Linux Distribution.
+      debug: msg=Distro:{{ ansible_distribution }}
+    - name: Installs the required Remi Repo packages. CENTOS
+      yum: name={{ remi_packages }} state=latest
+      become: true
+      when: ansible_distribution == "CentOS" or ansible_distribution == "RedHat"
+    - name: Installs the latest PHP7.x package (current PHP7.3). CENTOS
+      yum: name={{ php_yum_packages }} state=latest enablerepo=remi-php73
+      become: true
+      when: ansible_distribution == "CentOS" or ansible_distribution == "RedHat"
+    - name: Enables PHP packages on Amazon Machine by default. AMAZON.
+      command: "amazon-linux-extras enable php7.3"
+      become: true
+      when: ansible_distribution == "Amazon"
+    - name: Installs recommend PHP Modules. AMAZON
+      yum: name={{ php_yum_packages }} state=latest
+      become: true
+      when: ansible_distribution == "Amazon"
+    - name: Installs the required Ondrej PHP Repo packages. DEBAIN
+      apt: name={{ ondrej_package }} state=latest
+      become: true
+      when: ansible_distribution == "Debian" or ansible_distribution == "Ubuntu"
+    - name: Enables the Ondrej PHP Repo. DEBIAN
+      apt_repository: repo=ppa:ondrej/php
+      become: true
+      when: ansible_distribution == "Debian" or ansible_distribution == "Ubuntu"
+    - name: Install latest PHP7.x packages. DEBIAN
+      apt: name={{ php_apt_packages }} state=latest
+      become: true
+      when: ansible_distribution == "Debian" or ansible_distribution == "Ubuntu"
+    - name: Ensures that EPEL Repos are Enabled. AMAZON
+      command: "amazon-linux-extras enable epel"
+      become: true
+      when: ansible_distribution == "Amazon"
+    - name: Installs the EPEL Release Repo for Apache Modules. AMAZON
+      yum: name=epel-release state=latest
+      become: true
+      when: ansible_distribution == "Amazon"
+    - name: Enable Apache Modules already on Amazon EC2's. AMAZON
+      command: "amazon-linux-extras enable httpd_modules"
+      become: true
+      when: ansible_distribution == "Amazon"
+    - name: Install Apache Web Server and recommended modules. CENTOS
+      yum: name={{ apache_yum_packages }} state=latest
+      become: true
+      when: ansible_distribution == "CentOS" or ansible_distribution == "RedHat" or ansible_distribution == "Amazon"
+    - name: Install Apache Web Server and recommended modules. DEBIAN
+      apt: name={{ apache_apt_packages }} state=latest
+      become: true
+      when: ansible_distribution == "Debian" or ansible_distribution == "Ubuntu"
+    - name: Enable the Apache Web Server. CENTOS
+      service: name=httpd state=started
+      become: true
+      when: ansible_distribution == "CentOS" or ansible_distribution == "RedHat" or ansible_distribution == "Amazon"
+    - name: Enable the Apache Web Server. DEBIAN
+      service: name=apache2 state=started
+      become: true
+      when: ansible_distribution == "Debian" or ansible_distribution == "Ubuntu"
+  vars:
+    remi_packages:
+    - https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+    - http://rpms.remirepo.net/enterprise/remi-release-7.rpm
+    php_yum_packages:
+    - php
+    - php-common
+    - php-pear # Installs Pecl (PHP Package Manager)
+    - php-opcache
+    - php-cli
+    - php-gd
+    - php-curl # API Integration Module.
+    - php-mysqlnd # MySQL Integration Module.
+    - php-ldap # LDAP Server Integration Module.
+    - php-zip
+    - php-fileinfo
+    ondrej_package: software-properties-common
+    php_apt_packages:
+    - php7.3
+    - php7.3-common
+    - php-pear
+    - php7.3-opcache
+    - php7.3-cli
+    - php7.3-gd
+    - php7.3-curl
+    - php7.3-mysql
+    - php7.3-ldap
+    - php7.3-zip
+    - php7.3-fileinfo
+    apache_yum_packages:
+    - httpd
+    - mod_ssl # Allows SSL/HTTPS Support for the Server.
+    - mod_proxy_html # Allows Proxy Addressing Support.
+    - mod_ldap # LDAP Server Integration Module.
+    - mod_perl # Perl Integration Module.
+    - mod_perl-devel
+    - mod_http2 # Provides HTTP2 Compatability.
+    apache_apt_packages:
+    - apache2 # Shorter list as many modules come pre-installed.
+    - libapache2-mod-python
+    - libapache2-mod-ruby
+    - libapache2-mod-perl2
+    - libapache2-mod-mysqldb
+    - libapache2-mod-php
+    - libapache2-mod-webauth # Allows Authentication Integration.
+    - libapache2-mod-webauthldap
+    - libapache2-directory-api-java # LDAP API.
+    - liapache2-mod-userdir # Provides LDAP UserDir Lookups.
+
