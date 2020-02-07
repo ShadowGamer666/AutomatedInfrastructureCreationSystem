@@ -1,0 +1,32 @@
+---
+- name: Installs C/C++ Compilers and their dependancies.
+  hosts: all
+  tasks:
+    - name: Installs C/C++ and dependancies. CENTOS
+      yum: name={{ c_yum_packages }} state=latest
+      become: true
+      when: ansible_distribution == "CentOS" or ansible_distribution == "RedHat" or ansible_distribution == "Amazon"
+    - name: Installs C/C++ and dependancies. DEBIAN
+      apt: name={{ c_apt_packages }} state=latest update_cache=yes
+      become: true
+      when: ansible_distribution == "Debian" or ansible_distribution == "Ubuntu"
+  vars:
+    c_yum_packages:
+    - gcc # C Complier
+    - gcc-c++ # C++ Compiler
+    - autoconf
+    - automake
+    - binutils
+    - bison
+    - flex
+    - gettext
+    - libtool
+    - make
+    - patch
+    - pkgconfig
+    - redhat-rpm-config
+    - rpm-build
+    - rpm-sign
+    c_apt_packages:
+    - build-essential
+    - manpages-dev
