@@ -1,7 +1,9 @@
+
 ---
 # Script will only install PHP7.x due to known security issues with PHP5.x
 # Installation process uses Remi (https://rpms.remirepo.net/enterprise/7/)
 # and Ondrej (ppa:ondrej/php) to access latest PHP packages.
+# Ondrej (ppa:ondrej/apache2) is also used to access Apache Modules.
 - name: Install all required components for Apache and PHP.
   hosts: all
   tasks:
@@ -51,8 +53,20 @@
       yum: name={{ apache_yum_packages }} state=latest
       become: true
       when: ansible_distribution == "CentOS" or ansible_distribution == "RedHat" or ansible_distribution == "Amazon"
+    - name: Enable Ondrej Apache 2 Repo. DEBIAN
+      apt_repository: repo=ppa:ondrej/apache2
+      become: true
+      when: ansible_distribution == "Debian" or ansible_distribution == "Ubuntu"
     - name: Install Apache Web Server and recommended modules. DEBIAN
       apt: name={{ apache_apt_packages }} state=latest
+      become: true
+      when: ansible_distribution == "Debian" or ansible_distribution == "Ubuntu"
+    - name: Transfer RootDirectory Ownership. CENTOS
+      file: path=/var/www/html owner=apache group=apache state=directory
+      become: true
+      when: ansible_distribution == "CentOS" or ansible_distribution == "RedHat" or ansible_distribution == "Amazon"
+    - name: Transfer RootDirectory Ownership. DEBIAN
+      file: path=/var/www/html owner=www-data group=www-data state=directory
       become: true
       when: ansible_distribution == "Debian" or ansible_distribution == "Ubuntu"
     - name: Enable the Apache Web Server. CENTOS
@@ -94,6 +108,7 @@
     - php7.3-fileinfo
     apache_yum_packages:
     - httpd
+    - nodejs # Provide JavaScript Functionality.
     - mod_ssl # Allows SSL/HTTPS Support for the Server.
     - mod_proxy_html # Allows Proxy Addressing Support.
     - mod_ldap # LDAP Server Integration Module.
@@ -102,13 +117,14 @@
     - mod_http2 # Provides HTTP2 Compatability.
     apache_apt_packages:
     - apache2 # Shorter list as many modules come pre-installed.
+    - nodejs # Provides JavaScript functionality.
     - libapache2-mod-python
-    - libapache2-mod-ruby
     - libapache2-mod-perl2
-    - libapache2-mod-mysqldb
-    - libapache2-mod-php
+    - libapache2-mod-php7.3
+    - libapache2-mod-r-base
     - libapache2-mod-webauth # Allows Authentication Integration.
     - libapache2-mod-webauthldap
-    - libapache2-directory-api-java # LDAP API.
-    - liapache2-mod-userdir # Provides LDAP UserDir Lookups.
-
+    - libapache2-mod-auth-plain # Supports Basic Authentication.
+    - libapache2-mod-svn # SVN Version Control Management Support.
+    - libapache2-mod-security2
+    - libapache2-mod-passenger # Passenger (Ruby) Integration Module.
