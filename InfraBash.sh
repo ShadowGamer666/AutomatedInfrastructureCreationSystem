@@ -90,7 +90,7 @@ then
         # Obtains Inv data for user's current EC2 infrastructure.
         ./ec2.py --refresh-cache
         # Runs the required playbook on the newly created EC2.
-        ansible-playbook -i ec2.py -l tag_Service_$SERVICE_NAME Playbooks/python.yml --key-file $KEY_FILEPATH
+        ansible-playbook -i ec2.py -l tag_Service_$SERVICE_NAME Playbooks/webserver_php.yml --key-file $KEY_FILEPATH --flush-cache
 fi
 
 # Records the success of the Ansible operation.
@@ -104,14 +104,8 @@ fi
 
 if [ $TERRAFORM_SUCCESS -eq 0 ]
 then
-        # Removes Project State information
-        terraform state list | xargs -L 1 terraform state rm
+        # Removes Project State information if required.
+        terraform state list | xargs -L 1 terraform state rm 2> /dev/null
         echo "SRS Infrastructure has been successfully created for:"
         echo $PROJECT_NAME
-fi
-
-if [ $ANSIBLE_SUCCESS -eq 0 ]
-then
-        # Removes all cache data for the User's host(s).
-        ansible-playbook --flush-cache
 fi
