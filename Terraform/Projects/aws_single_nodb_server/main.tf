@@ -37,3 +37,19 @@ module "aws_single_ec2_instance" {
   ec2_subnet_id = "${var.ec2_subnet_id}"
   ec2_vpc_id = "${var.ec2_vpc_id}"
 }
+
+  output "ec2_private_key" {
+  value = "${module.aws_single_ec2_instance.ec2_private_key}"
+}
+
+output "ec2_public_key" {
+  value = "${module.aws_single_ec2_instance.ec2_public_key}"
+}
+
+output "ec2_private_ip" {
+  value = "${module.aws_single_ec2_instance.standard_ec2_private_ip}"
+}
+
+output "ec2_public_ip" {
+  value = "${module.aws_single_ec2_instance.standard_ec2_public_ip}"
+}
