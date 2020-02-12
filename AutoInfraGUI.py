@@ -52,7 +52,7 @@ def input_as_file():
         # Checks if file meets format and size requirements for Google AutoML.
         srs_file_info = fleep.get(srs_data)
         srs_file_size = os.stat(srs_filepath).st_size / 1024 # Size comparisons happen in KB.
-        print(srs_file_size)
+        print("Size of Input SRS File: " + str(srs_file_size) + "KB")
         if srs_file_info.mime_matches("application/pdf") and srs_file_size <= 128:
             print("File retrieved, uploading to application server for analysis.")
             srs_file.close()
@@ -70,6 +70,7 @@ def input_as_file():
     else:
         # Exits the operation if filepath is invalid.
         print("User has not selected a file or filepath provided is invalid.")
+        tkMessageBox.showerror("No File Selected","You have not selected a file or the filepath provided is invalid.")
         return
 
 # Obtains additional project information from the user for the Central Server.
@@ -132,6 +133,13 @@ def get_project_details(srs_filepath,ext):
     srs_button_frame.grid()
     srs_details_button.pack(side = "left")
     srs_quit_button.pack(side = "right")
+
+    # Sets up appropriate Dialog if the user prematurely destroys this Window.
+    def window_destroy():
+        print("User has Refused to Provide Additional Project Information.")
+        srs_parameters_gui.destroy()
+
+    srs_parameters_gui.protocol("WM_DELETE_WINDOW", window_destroy)
     srs_parameters_gui.mainloop()
 
 
@@ -215,6 +223,7 @@ def input_to_central_server(srs_filepath,ext,srs_project_info):
 
     # Requires different commands depending on the User's OS.
     print("User Platform: " + platform.system())
+    print("Sending User SRS Along With Relevant Info/Credentials to Central Server:")
     # Copies SRS data to Central Server, then executes the SRS Analysis and Infrastructure Creation script.
     if platform.system() == "Windows":
         # Putty SCP and Plick are used as they directly integrate with Bash like Putty.
@@ -225,7 +234,7 @@ def input_to_central_server(srs_filepath,ext,srs_project_info):
         # Sends the encrypted project parameters for this session to the Central Server.
         subprocess.run(["pscp", "-i", windows_server_key_filepath, windows_encrypted_project_filepath, central_encrypted_project_filepath])
         # Executes the Bash wrapper script on the Central Server to perform classification and infrastructure creation.
-        subprocess.run(["plink", "-ssh","-i",windows_server_key_filepath,central_server,infra_directory_linux+"InfraBash.sh",ext])
+        central_server_result = subprocess.run(["plink", "-ssh","-i",windows_server_key_filepath,central_server,infra_directory_linux+"InfraBash.sh",ext])
     elif platform.system() == "Linux" or "Darwin":  # Darwin = MacOS
         # Uses SSH sessions to initiate the required operations on the Central Server.
         subprocess.run(["scp", "-i", linux_server_key_filepath, srs_filepath, central_server_filepath])
@@ -234,7 +243,17 @@ def input_to_central_server(srs_filepath,ext,srs_project_info):
         # Sends the encrypted project parameters for this session to the Central Server.
         subprocess.run(["pscp", "-i", windows_server_key_filepath, linux_encrypted_project_filepath, central_encrypted_project_filepath])
         # Executes the Bash wrapper script on the Central Server to perform classification and infrastructure creation.
-        subprocess.run(["ssh", "-i",linux_server_key_filepath,central_server, infra_directory_linux+"InfraBash.sh",ext])
+        central_server_result = subprocess.run(["ssh", "-i",linux_server_key_filepath,central_server, infra_directory_linux+"InfraBash.sh",ext])
+
+    # Checks to see if Central Server scripts/processes were successful.
+    if central_server_result.returncode == 0:
+        print("Infrastructure Creation Successful.")
+        tkMessageBox.showinfo("Success","Infrastructure Creation Successful.")
+        exit(0)
+    else:
+        print("Infrastructure Creation Failed.")
+        tkMessageBox.showerror("Failed","Infrastructure Creation Failed.")
+        exit(10)
 
 # Allows the user to select which Cloud Provider to create infrastructure in.
 def set_selected_provider():
