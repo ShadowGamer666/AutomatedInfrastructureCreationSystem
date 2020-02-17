@@ -1,4 +1,6 @@
-# Uses created Google AutoML Model to produce a template recomendation
+#!/usr/bin/python3
+
+# Uses created Google AutoML Model to produce a template recommendation
 # for the submitted SRS Document.
 from google.cloud import automl
 # Used to produce the plain representation of PDf files.
@@ -34,17 +36,24 @@ def extract_pdf_text(pdf_filepath):
 
 # Reads script parameters from the Bash wrapper script.
 ext = sys.argv[1]
-
+# Ensures valid parameters have been provided.
+if ext != "pdf" and ext != "txt":
+    print("Invalid Extenstion Parameter Provided.")
+    exit(15)
+# Sets the correct parameters for the Classificaton Model.
+model_endpoint = "eu-automl.googleapis.com:443"
+model_id = "TCN8587555248837492736"
+model_region = "eu"
 # Performs the SRS Document Classification Prediction
 # Ensures that the Client uses the EU API endpoint.
-srs_client_options = {'api_endpoint':'eu-automl.googleapis.com:443'}
+srs_client_options = {'api_endpoint':model_endpoint}
 srs_prediction_client = automl.PredictionServiceClient(client_options=srs_client_options)
 # Discovers the full_model_id based on project_id,location,model_id.
 srs_model_id = srs_prediction_client.model_path(
-"avian-cat-259412","eu","TCN1241339831666081792"
+"avian-cat-259412",model_region,model_id
 )
 if ext == "txt":
-   # Creates the Payload for SRS input in text format.
+    # Creates the Payload for SRS input in text format.
     srs_text_data = open("/opt/infra/SRSDocs/PredictSRSDoc.txt",'r')
     srs_text_data = srs_text_data.read()
     srs_text_doc = automl.types.TextSnippet(
@@ -52,7 +61,7 @@ if ext == "txt":
     )
     srs_payload = automl.types.ExamplePayload(text_snippet=srs_text_doc)
 elif ext == "pdf":
-   # Creates the Payload for SRS input originally in PDF format.
+    # Creates the Payload for SRS input originally in PDF format.
     pdf_to_text = extract_pdf_text("/opt/infra/SRSDocs/PredictSRSDoc.pdf")
     srs_pdf_text = automl.types.TextSnippet(
     content = pdf_to_text, mime_type = "text/plain"
@@ -63,7 +72,7 @@ elif ext == "pdf":
     srs_payload = automl.types.ExamplePayload(document=srs_pdf_doc)
 # Sends the processed SRS payload to the Model for obtain Class result.
 srs_response = srs_prediction_client.predict(srs_model_id,srs_payload)
-# Decudes the most relevant template based on provided confidence scores.
+# Deduces the most relevant template based on provided confidence scores.
 final_confidence_score = 0
 for result_payload in srs_response.payload:
     srs_class_name = result_payload.display_name
