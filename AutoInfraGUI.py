@@ -15,6 +15,11 @@ import platform
 import rsa
 # Allows users to copy/paste PlainText SRS from the system clipboard.
 import pyperclip
+# Allows All Console Output to be presented to the user.
+import sys
+from io import StringIO
+# Provides the Date/Time of operations for Console Log.
+from _datetime import datetime
 
 # Defines functions that will be executed by the GUI.
 # Process any SRS Document provider in text format.
@@ -122,8 +127,8 @@ def get_project_details(srs_filepath,ext):
         else:
             srs_entries.append(tk.Entry(aws_frame, width=50))
         aws_frame.grid()
-        aws_label.pack(side = "left")
-        srs_entries[entry_count].pack(side = "right")
+        aws_label.pack(side = tk.LEFT)
+        srs_entries[entry_count].pack(side = tk.RIGHT)
         entry_count += 1
 
     # Initializes the Submit and Cancel buttons for the GUI.
@@ -131,8 +136,8 @@ def get_project_details(srs_filepath,ext):
     srs_details_button = tk.Button(srs_button_frame, text="Submit Info", width=25, command=write_project_details)
     srs_quit_button = tk.Button(srs_button_frame, text="Cancel", width=25, command=srs_parameters_gui.destroy)
     srs_button_frame.grid()
-    srs_details_button.pack(side = "left")
-    srs_quit_button.pack(side = "right")
+    srs_details_button.pack(side = tk.LEFT)
+    srs_quit_button.pack(side = tk.RIGHT)
 
     # Sets up appropriate Dialog if the user prematurely destroys this Window.
     def window_destroy():
@@ -234,7 +239,7 @@ def input_to_central_server(srs_filepath,ext,srs_project_info):
         # Sends the encrypted project parameters for this session to the Central Server.
         subprocess.run(["pscp", "-i", windows_server_key_filepath, windows_encrypted_project_filepath, central_encrypted_project_filepath])
         # Executes the Bash wrapper script on the Central Server to perform classification and infrastructure creation.
-        central_server_result = subprocess.run(["plink", "-ssh","-i",windows_server_key_filepath,central_server,infra_directory_linux+"InfraBash.sh",ext])
+        central_server_result = subprocess.run(["plink", "-ssh","-i",windows_server_key_filepath,central_server,infra_directory_linux+"InfraBash.sh",ext], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     elif platform.system() == "Linux" or "Darwin":  # Darwin = MacOS
         # Uses SSH sessions to initiate the required operations on the Central Server.
         subprocess.run(["scp", "-i", linux_server_key_filepath, srs_filepath, central_server_filepath])
@@ -243,17 +248,31 @@ def input_to_central_server(srs_filepath,ext,srs_project_info):
         # Sends the encrypted project parameters for this session to the Central Server.
         subprocess.run(["pscp", "-i", windows_server_key_filepath, linux_encrypted_project_filepath, central_encrypted_project_filepath])
         # Executes the Bash wrapper script on the Central Server to perform classification and infrastructure creation.
-        central_server_result = subprocess.run(["ssh", "-i",linux_server_key_filepath,central_server, infra_directory_linux+"InfraBash.sh",ext])
+        central_server_result = subprocess.run(["ssh", "-i",linux_server_key_filepath,central_server, infra_directory_linux+"InfraBash.sh",ext], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 
+    # Outputs Central Server Output to the User.
+    current_datetime = datetime.now()
+    current_datetime = current_datetime.strftime("%Y-%m-%d, %H:%M:%S")
+    srs_session_info = "\n----------\nOperation executed at: " + current_datetime
+    srs_stdout = "\n----------\nClient (You): \n" + srs_output.getvalue() + "\nCentral Server:\n" + central_server_result.stdout
+    # Combines the Session DateTime and Console Stdout into a single String.
+    srs_console_output = srs_session_info + srs_stdout
+    # Use the Line Below when User Console Output has been disabled.
+    # srs_console_output = "Console Output is Currently Disabled at this Time."
+    # Resets Stdout to IDE Console.
+    sys.stdout = old_stdout
+    print("Console Output: " + srs_console_output)
+    srs_text_output.config(state=tk.NORMAL)
+    srs_text_output.insert(tk.END, srs_console_output)
+    srs_text_output.config(state=tk.DISABLED)
     # Checks to see if Central Server scripts/processes were successful.
     if central_server_result.returncode == 0:
         print("Infrastructure Creation Successful.")
         tkMessageBox.showinfo("Success","Infrastructure Creation Successful.")
-        exit(0)
     else:
         print("Infrastructure Creation Failed.")
         tkMessageBox.showerror("Failed","Infrastructure Creation Failed.")
-        exit(10)
+    return
 
 # Allows the user to select which Cloud Provider to create infrastructure in.
 def set_selected_provider():
@@ -393,8 +412,8 @@ def aws_cloud_details():
         if value != "":
             aws_entries[entry_count].insert(tk.END, value)
         aws_frame.grid()
-        aws_label.pack(side = "left")
-        aws_entries[entry_count].pack(side = "right")
+        aws_label.pack(side = tk.LEFT)
+        aws_entries[entry_count].pack(side = tk.RIGHT)
         entry_count += 1
 
     # This submits any changes made to user credentials.
@@ -402,8 +421,8 @@ def aws_cloud_details():
     aws_details_button = tk.Button(aws_button_frame, text="Submit Changes", width=25, command=write_aws_details)
     aws_quit_button = tk.Button(aws_button_frame, text="Finish", width=25, command=aws_details_gui.destroy)
     aws_button_frame.grid()
-    aws_details_button.pack(side = "left")
-    aws_quit_button.pack(side = "right")
+    aws_details_button.pack(side = tk.LEFT)
+    aws_quit_button.pack(side = tk.RIGHT)
     aws_details_gui.mainloop()
 
 # This is the Main Function that creates the Main GUI users will utilise.
@@ -443,11 +462,13 @@ srs_text_label = tk.Label(inter, text = "Input SRS Text Here:", font = srs_font)
 srs_text_frame = tk.Frame(inter)
 srs_text_input = tk.Text(srs_text_frame, height = 10)
 srs_text_scrollbar = tk.Scrollbar(srs_text_frame)
+srs_text_input.config(yscrollcommand = srs_text_scrollbar.set)
+srs_text_scrollbar.config(command = srs_text_input.yview)
 srs_text_button = tk.Button(inter, text = "Input SRS as Text", width = 25, command = input_as_text)
 srs_text_label.grid()
 srs_text_frame.grid()
-srs_text_input.pack(side = 'left', fill = tk.Y)
-srs_text_scrollbar.pack(side = 'right', fill = tk.Y)
+srs_text_input.pack(side = tk.LEFT, fill = tk.Y)
+srs_text_scrollbar.pack(side = tk.RIGHT, fill = tk.Y)
 srs_text_button.grid()
 
 # Allows SRS input in PDF format.
@@ -455,6 +476,19 @@ srs_file_label = tk.Label(inter, text = "Input SRS as PDF Document:", font = srs
 srs_file_button = tk.Button(inter, text = "Browse for File", width = 25, command = input_as_file)
 srs_file_label.grid()
 srs_file_button.grid()
+
+# Allows Output from Central Server to be Displayed to the User.
+srs_output_frame = tk.Frame(inter)
+srs_text_output = tk.Text(srs_output_frame, height = 10)
+srs_text_output.insert(tk.END,"This textbox contains all System Output produced by your Infrastructure Creation!!!")
+# Read-Only Text Entry
+srs_text_output.config(state=tk.DISABLED)
+srs_output_scrollbar = tk.Scrollbar(srs_output_frame)
+srs_text_output.config(yscrollcommand = srs_output_scrollbar.set)
+srs_output_scrollbar.config(command = srs_text_output.yview)
+srs_output_frame.grid()
+srs_text_output.pack(side = tk.LEFT, fill = tk.Y)
+srs_output_scrollbar.pack(side = tk.RIGHT, fill = tk.Y)
 
 # Function manages the Popup of the Menu when Text Input is Right-Clicked.
 def popup(event):
@@ -481,6 +515,11 @@ popup_menu.add_command(label="Copy", command=copy)
 popup_menu.add_command(label="Paste", command=paste)
 # Binds the Popup Menu to the SRS Text Input.
 srs_text_input.bind("<Button-3>",popup)
+
+# OPTIONAL ALLOWS REDIRECTING OF STDOUT TO USER.
+old_stdout = sys.stdout
+output = srs_output = StringIO()
+sys.stdout = output
 
 # This loop is used to run the constructed GUI for the user.
 inter.mainloop()
